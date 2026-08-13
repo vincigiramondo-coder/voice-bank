@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.voicebank.voice-input</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON_BIN__</string>
+    <string>__SERVER_FILE__</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__APP_DIR__</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>VOICE_BANK_VOICE_INPUT_HOST</key>
+    <string>__SERVER_HOST__</string>
+    <key>VOICE_BANK_VOICE_INPUT_PORT</key>
+    <string>__SERVER_PORT__</string>
+    <key>VOICE_BANK_VOICE_INPUT_LOG_DIR</key>
+    <string>__LOG_DIR__</string>
+    <key>VOICE_BANK_SAVE_HISTORY</key>
+    <string>0</string>
+    <key>VOICE_BANK_DEBUG_TEXT_LOGS</key>
+    <string>0</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>__LOG_DIR__/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG_DIR__/launchd.err.log</string>
+</dict>
+</plist>

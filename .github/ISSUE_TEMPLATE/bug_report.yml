@@ -1,0 +1,65 @@
+name: Bug report / 问题反馈
+description: Report a reproducible problem without sharing private voice data / 反馈可复现的问题，请勿上传私人语音数据
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Voice Bank. Please remove recordings, transcripts, tokens, private addresses, usernames, and local paths before posting.
+
+        感谢帮助改进 Voice Bank。发布前，请删除录音、转写文字、令牌、私人地址、用户名及本机目录路径。
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version / macOS 版本
+      placeholder: macOS 15.6
+    validations:
+      required: true
+
+  - type: input
+    id: chip
+    attributes:
+      label: Mac chip / Mac 芯片
+      placeholder: Apple M2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where did it happen? / 问题出现在哪一步？
+      options:
+        - Installation / 安装
+        - App startup / 启动
+        - Recording / 录音
+        - Transcription / 转写
+        - Text polishing / 文案整理
+        - Pasting / 粘贴
+        - Other / 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened? / 发生了什么？
+      description: Include the steps needed to reproduce the problem / 请写明复现步骤
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs / 已脱敏日志
+      description: Optional. Do not include voice data, transcripts, tokens, private addresses, usernames, or home-directory paths / 选填，请勿包含语音、转写、令牌、私人地址、用户名或本机目录
+      render: shell
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check / 隐私确认
+      options:
+        - label: I removed private data from this report / 我已从反馈中删除私人数据
+          required: true

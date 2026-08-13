@@ -1,0 +1,39 @@
+name: Build and tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-14
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run privacy tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Check Python syntax
+        run: python3 -m py_compile air_voice_client.py server/voice_input_server.py
+
+      - name: Check shell scripts and launchd template
+        run: |
+          bash -n menu_bar/build_menu_bar_app.sh menu_bar/install_voicebank_app.sh server/scripts/*.sh
+          plutil -lint server/deploy/com.voicebank.voice-input.plist.template
+
+      - name: Build and verify the menu bar app
+        run: |
+          ./menu_bar/build_menu_bar_app.sh
+          codesign --verify --deep --strict build/VoiceBankMenuBar.app
