@@ -65,6 +65,8 @@ Bug reports and small improvements are welcome. Before sharing logs, please remo
 
 欢迎反馈问题和提交小改进。分享日志前，请先删除录音、转写文字、令牌、私人地址和本机文件路径。简要流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
+Project roles and AI-assisted development are documented in [CONTRIBUTORS.md](CONTRIBUTORS.md). / 项目角色与 AI 协作开发记录见 [CONTRIBUTORS.md](CONTRIBUTORS.md)。
+
 ## License
 
 [MIT](LICENSE)
