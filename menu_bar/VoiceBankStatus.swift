@@ -9,7 +9,6 @@ enum VoiceBankStatus: Equatable {
     case alreadyRecording
     case canceled
     case pasted
-    case copiedFocusChanged
     case copiedNeedsAccessibility
     case copiedPasteEventFailed
     case missingText
@@ -43,8 +42,6 @@ enum VoiceBankStatus: Equatable {
             return VoiceBankText.pick("Canceled", "已取消")
         case .pasted:
             return VoiceBankText.pick("Pasted", "已粘贴")
-        case .copiedFocusChanged:
-            return VoiceBankText.pick("Copied - app changed, press Command+V", "已复制；窗口已切换，请按 Command+V")
         case .copiedNeedsAccessibility:
             return VoiceBankText.pick("Copied - allow Accessibility", "已复制，请允许辅助功能权限")
         case .copiedPasteEventFailed:

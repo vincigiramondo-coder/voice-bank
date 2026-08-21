@@ -1,9 +1,27 @@
 import AppKit
 import ApplicationServices
+import AVFoundation
 import CoreGraphics
 import Foundation
 
 final class PermissionsService {
+    func requestMicrophoneIfNeeded(completion: @escaping (Bool) -> Void) {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            completion(true)
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    completion(granted)
+                }
+            }
+        case .denied, .restricted:
+            completion(false)
+        @unknown default:
+            completion(false)
+        }
+    }
+
     func isAccessibilityTrusted() -> Bool {
         AXIsProcessTrusted()
     }

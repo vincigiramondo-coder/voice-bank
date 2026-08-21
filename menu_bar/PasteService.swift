@@ -5,7 +5,6 @@ import Foundation
 
 enum PasteResult {
     case pasted
-    case copiedFocusChanged
     case copiedNeedsAccessibility
     case copiedPasteEventFailed
     case missingText
@@ -14,8 +13,6 @@ enum PasteResult {
         switch self {
         case .pasted:
             return .pasted
-        case .copiedFocusChanged:
-            return .copiedFocusChanged
         case .copiedNeedsAccessibility:
             return .copiedNeedsAccessibility
         case .copiedPasteEventFailed:
@@ -35,11 +32,7 @@ final class PasteService {
         self.appendLog = appendLog
     }
 
-    func pasteRecognizedText(
-        from output: String,
-        originatingProcessIdentifier: pid_t?,
-        onAccessibilityMissing: () -> Void
-    ) -> PasteResult {
+    func pasteRecognizedText(from output: String, onAccessibilityMissing: () -> Void) -> PasteResult {
         guard let text = recognizedText(from: output), !text.isEmpty else {
             appendLog("paste missing_text outputChars=\(output.count)")
             return .missingText
@@ -51,18 +44,13 @@ final class PasteService {
             return .copiedPasteEventFailed
         }
 
-        if let originatingProcessIdentifier,
-           NSWorkspace.shared.frontmostApplication?.processIdentifier != originatingProcessIdentifier {
-            return .copiedFocusChanged
-        }
-
         guard permissions.isAccessibilityTrusted() else {
             onAccessibilityMissing()
             return .copiedNeedsAccessibility
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-            self?.sendCommandV(originatingProcessIdentifier: originatingProcessIdentifier)
+            self?.sendCommandV()
         }
         return .pasted
     }
@@ -104,12 +92,7 @@ final class PasteService {
         }
     }
 
-    private func sendCommandV(originatingProcessIdentifier: pid_t?) {
-        if let originatingProcessIdentifier,
-           NSWorkspace.shared.frontmostApplication?.processIdentifier != originatingProcessIdentifier {
-            appendLog("paste skipped focus_changed")
-            return
-        }
+    private func sendCommandV() {
         guard let source = CGEventSource(stateID: .hidSystemState) else {
             appendLog("paste eventSource failed")
             return

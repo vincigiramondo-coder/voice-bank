@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 
 enum RecordingState {
@@ -26,7 +25,6 @@ final class RecordingCoordinator {
     private let callbacks: RecordingCoordinatorCallbacks
     private var state: RecordingState = .idle
     private var processingWatchdog: DispatchWorkItem?
-    private var originatingProcessIdentifier: pid_t?
 
     init(
         voiceInputClient: VoiceInputClient,
@@ -58,7 +56,6 @@ final class RecordingCoordinator {
             return
         }
         voiceInputClient.terminate()
-        originatingProcessIdentifier = nil
         state = .idle
         updateVoiceMenuTitle()
         callbacks.setStatus(.canceled)
@@ -69,7 +66,6 @@ final class RecordingCoordinator {
         processingWatchdog?.cancel()
         processingWatchdog = nil
         voiceInputClient.terminate()
-        originatingProcessIdentifier = nil
         state = .idle
     }
 
@@ -84,10 +80,6 @@ final class RecordingCoordinator {
         }
 
         do {
-            let frontmostProcessIdentifier = NSWorkspace.shared.frontmostApplication?.processIdentifier
-            originatingProcessIdentifier = frontmostProcessIdentifier == ProcessInfo.processInfo.processIdentifier
-                ? -1
-                : frontmostProcessIdentifier
             try voiceInputClient.start { [weak self] completion in
                 self?.handleCompletion(completion)
             }
@@ -96,7 +88,6 @@ final class RecordingCoordinator {
             callbacks.showRecording()
             updateVoiceMenuTitle()
         } catch {
-            originatingProcessIdentifier = nil
             state = .idle
             updateVoiceMenuTitle()
             callbacks.setStatus(.launchFailed(error.localizedDescription))
@@ -124,22 +115,16 @@ final class RecordingCoordinator {
         updateVoiceMenuTitle()
 
         if completion.terminationStatus == 0 {
-            let pasteResult = pasteService.pasteRecognizedText(
-                from: completion.output,
-                originatingProcessIdentifier: originatingProcessIdentifier
-            ) {
+            let pasteResult = pasteService.pasteRecognizedText(from: completion.output) {
                 callbacks.refreshPermissions()
             }
-            originatingProcessIdentifier = nil
             callbacks.setStatus(pasteResult.status)
             callbacks.showDone()
             callbacks.refreshHistory()
         } else if completion.terminationStatus == 15 {
-            originatingProcessIdentifier = nil
             callbacks.setStatus(.canceled)
             callbacks.showCanceled()
         } else {
-            originatingProcessIdentifier = nil
             let summary = completion.output.split(separator: "\n").last.map(String.init) ?? "Exit \(completion.terminationStatus)"
             callbacks.setStatus(.failed(summary))
             callbacks.showFailed()
@@ -153,7 +138,6 @@ final class RecordingCoordinator {
                 return
             }
             self.voiceInputClient.terminate()
-            self.originatingProcessIdentifier = nil
             self.processingWatchdog = nil
             self.state = .idle
             self.updateVoiceMenuTitle()

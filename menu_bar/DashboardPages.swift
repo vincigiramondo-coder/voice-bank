@@ -5,6 +5,7 @@ extension DashboardWindowController {
         let stats = historyStore.stats()
         wordsTodayLabel.stringValue = "\(stats.todayChars)"
         totalWordsLabel.stringValue = "\(stats.totalChars)"
+        dashboardModel.refreshHistory()
     }
 
     func buildRootView() -> NSView {
@@ -54,7 +55,7 @@ extension DashboardWindowController {
 
         let home = navRow(title: VoiceBankText.pick("Home", "首页"), symbol: "house", selected: selectedPage == .home, action: #selector(showHomePage))
         let history = navRow(title: VoiceBankText.pick("History", "历史"), symbol: "clock.arrow.circlepath", selected: selectedPage == .history, action: #selector(showHistoryPage))
-        let version = makeLabel("v0.1.0", size: 12, color: NSColor(calibratedWhite: 0.82, alpha: 1), alignment: .center)
+        let version = makeLabel("v\(VoiceBankConfig.appVersion)", size: 12, color: NSColor(calibratedWhite: 0.82, alpha: 1), alignment: .center)
         let powered = makeLabel("Voice Bank", size: 13, weight: .semibold, color: accentColor, alignment: .center)
 
         let stack = NSStackView(views: [home, history])
@@ -123,16 +124,14 @@ extension DashboardWindowController {
     }
 
     func refreshLocalizedContent(currentStatus: VoiceBankStatus) {
-        let page = selectedPage
-        let scrollOrigin = activeScrollOrigin()
+        dashboardModel.refreshLocalizedContent(currentStatus: currentStatus)
         hotkeyStatusLabel.stringValue = VoiceBankText.pick("Right Option is listening", "右 Option 正在监听")
-        showPage(page)
         updateStatus(currentStatus)
-        restoreActiveScrollOrigin(scrollOrigin)
     }
 
     func showPage(_ page: DashboardPage) {
         selectedPage = page
+        dashboardModel.selectedPage = page
         refreshStatsFromHistory()
         refreshSidebar()
         let view = page == .home ? buildHomeContent() : buildHistoryContent()
@@ -237,10 +236,7 @@ extension DashboardWindowController {
 
         if entries.isEmpty {
             let empty = RoundedView(fillColor: .white, strokeColor: lineColor, radius: 14)
-            let emptyText = VoiceBankPreferences.saveLocalHistory
-                ? VoiceBankText.pick("No history yet. Press Right Option to record; successful transcriptions will appear here.", "还没有历史记录。按右 Option 开始录音，识别成功后会出现在这里。")
-                : VoiceBankText.pick("History is off. Enable it in Home > Options if you want Voice Bank to retain transcript text.", "历史记录已关闭。如需保留转写文字，请在“首页 > 选项”中主动开启。")
-            let label = makeLabel(emptyText, size: 15, color: mutedTextColor)
+            let label = makeLabel(VoiceBankText.pick("No history yet. Press Right Option to record; successful transcriptions will appear here.", "还没有历史记录。按右 Option 开始录音，识别成功后会出现在这里。"), size: 15, color: mutedTextColor)
             label.lineBreakMode = .byWordWrapping
             label.maximumNumberOfLines = 0
             empty.addSubview(label)
@@ -486,46 +482,11 @@ extension DashboardWindowController {
         let soundSwitch = NSSwitch()
         soundSwitch.state = .off
         soundSwitch.isEnabled = false
-        let historySwitch = NSSwitch()
-        historySwitch.state = VoiceBankPreferences.saveLocalHistory ? .on : .off
-        historySwitch.target = NSApp.delegate
-        historySwitch.action = #selector(AppDelegate.changeHistoryEnabled(_:))
         addRows([
             SettingRowView(title: VoiceBankText.pick("Text Polish", "文本润色"), trailing: polishSwitch),
-            SettingRowView(title: VoiceBankText.pick("Sound Feedback", "声音反馈"), trailing: soundSwitch),
-            SettingRowView(
-                title: VoiceBankText.pick("Save Transcript History", "保存转写历史"),
-                subtitle: VoiceBankText.pick("Off by default. When enabled, text is stored locally for the selected retention period.", "默认关闭。开启后，文字只在本机保存，并按所选期限自动清理。"),
-                trailing: historySwitch
-            ),
-            SettingRowView(title: VoiceBankText.pick("History Retention", "历史保留期限"), trailing: historyRetentionPopup()),
-            SettingRowView(
-                title: VoiceBankText.pick("Delete History", "删除历史"),
-                subtitle: VoiceBankText.pick("Permanently removes all locally stored transcript text.", "永久删除本机保存的全部转写文字。"),
-                trailing: actionPill(VoiceBankText.pick("Clear All", "全部清空"), selector: #selector(AppDelegate.clearLocalHistory))
-            )
+            SettingRowView(title: VoiceBankText.pick("Sound Feedback", "声音反馈"), trailing: soundSwitch)
         ], to: section)
         return section
-    }
-
-    func historyRetentionPopup() -> NSPopUpButton {
-        let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-        popup.translatesAutoresizingMaskIntoConstraints = false
-        popup.target = NSApp.delegate
-        popup.action = #selector(AppDelegate.changeHistoryRetention(_:))
-        popup.isEnabled = VoiceBankPreferences.saveLocalHistory
-        for days in VoiceBankPreferences.retentionOptions {
-            popup.addItem(withTitle: VoiceBankText.pick("\(days) days", "\(days) 天"))
-            popup.lastItem?.representedObject = days
-        }
-        if let index = VoiceBankPreferences.retentionOptions.firstIndex(of: VoiceBankPreferences.historyRetentionDays) {
-            popup.selectItem(at: index)
-        }
-        NSLayoutConstraint.activate([
-            popup.heightAnchor.constraint(equalToConstant: 32),
-            popup.widthAnchor.constraint(greaterThanOrEqualToConstant: 150)
-        ])
-        return popup
     }
 
     func buildPreferencesSection() -> NSView {
@@ -533,7 +494,7 @@ extension DashboardWindowController {
         addRows([
             SettingRowView(title: VoiceBankText.pick("Language", "语言"), trailing: languagePopup()),
             SettingRowView(title: VoiceBankText.pick("Appearance", "外观"), trailing: PillView(VoiceBankText.pick("System", "跟随系统"))),
-            SettingRowView(title: VoiceBankText.pick("Voice Server", "语音服务"), subtitle: VoiceBankConfig.endpointDisplay, trailing: PillView(VoiceBankText.pick("Configured", "已配置")))
+            SettingRowView(title: VoiceBankText.pick("Mini Server", "Mini 服务"), subtitle: VoiceBankConfig.endpointDisplay, trailing: PillView(VoiceBankText.pick("Ready", "就绪")))
         ], to: section)
         return section
     }

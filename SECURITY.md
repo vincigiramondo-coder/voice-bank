@@ -1,16 +1,18 @@
 # Security
 
-## Supported source release
+## Supported release
 
-This source release is tested on Apple Silicon with Python 3.13.13 and macOS 14 or later. It is not a signed or notarized binary release.
+The native client is tested on Apple Silicon with macOS 14 or later. The separate self-hosted server is tested with Python 3.13.13. Public binary releases must be Developer ID signed and notarized; locally generated ad-hoc packages are test artifacts only.
 
 ## Network boundary
 
 The server binds to `127.0.0.1` by default. Non-loopback mode requires a bearer token unless the operator deliberately sets `VOICE_BANK_ALLOW_INSECURE_LAN=1`. Bearer authentication does not encrypt HTTP traffic; use Tailscale/VPN or a TLS reverse proxy and never expose the service directly to the internet.
 
+The native client supports HTTP only for localhost, private LAN ranges, local hostnames, and Tailscale addresses. Public server addresses must use HTTPS. The App Transport Security exception exists solely to support user-configured self-hosted LAN and Tailscale endpoints; endpoint validation prevents ordinary public HTTP targets.
+
 ## Sensitive data
 
-Audio uses unique owner-only temporary directories. Client and server transcript history are disabled by default. Enabling history stores dictated text locally; use the app's clear-all action or `air_voice_client.py --clear-history` to delete it.
+Audio uses unique owner-only temporary directories that are removed after processing. The client stores text History under `~/Documents/Voice Bank/History`; delete that directory to remove it. Tokens and endpoint preferences stay in the user's account and must never be committed.
 
 ## Dependency advisory note
 

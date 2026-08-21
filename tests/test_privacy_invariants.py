@@ -78,6 +78,22 @@ class PrivacyInvariantTests(unittest.TestCase):
         self.assertNotIn("air_recording.wav", sources)
         self.assertNotIn("keyCode == 58", sources)
 
+    def test_menu_bar_client_is_native_and_source_independent(self):
+        swift_client = (ROOT / "menu_bar" / "VoiceInputClient.swift").read_text(encoding="utf-8")
+        swift_config = (ROOT / "menu_bar" / "VoiceBankConfig.swift").read_text(encoding="utf-8")
+        build_script = (ROOT / "menu_bar" / "build_menu_bar_app.sh").read_text(encoding="utf-8")
+
+        self.assertIn("AVAudioRecorder", swift_client)
+        self.assertIn("URLSession", swift_client)
+        self.assertNotIn("/.venv/bin/python", swift_client)
+        self.assertNotIn("/air_voice_client.py", swift_client)
+        self.assertNotIn("VoiceBankProjectDirectory", swift_config)
+        self.assertNotIn("VoiceBankProjectDirectory", build_script)
+        self.assertNotIn("Desktop/Codex", swift_client + swift_config + build_script)
+        self.assertIn("isAllowedInsecureHost", swift_config)
+        self.assertIn("configuration.connectionProxyDictionary = [:]", swift_config)
+        self.assertIn("NSAppTransportSecurity", build_script)
+
     def test_server_defaults_to_loopback_and_requires_lan_auth(self):
         source = (ROOT / "server" / "voice_input_server.py").read_text(encoding="utf-8")
         self.assertIn('"127.0.0.1"', source)

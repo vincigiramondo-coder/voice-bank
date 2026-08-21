@@ -33,16 +33,71 @@ struct HistoryStore {
         indexURL.deletingLastPathComponent()
     }
 
-    func clearAll() throws {
+    func append(result: [String: Any], outputText: String, endpoint: String) throws {
         let manager = FileManager.default
-        if manager.fileExists(atPath: historyFolderURL.path) {
-            try manager.removeItem(at: historyFolderURL)
-        }
+        let dailyDirectory = historyFolderURL.appendingPathComponent("daily", isDirectory: true)
         try manager.createDirectory(
             at: historyFolderURL,
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700]
         )
+        try manager.createDirectory(
+            at: dailyDirectory,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: historyFolderURL.path)
+        try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dailyDirectory.path)
+
+        let now = Date()
+        let rawText = result["raw"] as? String ?? ""
+        let polishedText = result["polished"] as? String ?? outputText
+        let memory = result["memory"] as? [String: Any]
+        let entry: [String: Any] = [
+            "id": "air-\(Self.compactTimestampFormatter.string(from: now))-\(UUID().uuidString.prefix(8).lowercased())",
+            "created_at": Self.isoFormatter.string(from: now),
+            "date": Self.dayFormatter.string(from: now),
+            "time": Self.timeFormatter.string(from: now),
+            "source": "voice_bank_native",
+            "server_url": endpoint,
+            "server_memory_id": memory?["id"] ?? NSNull(),
+            "raw": rawText,
+            "polished": polishedText,
+            "text": outputText,
+            "raw_chars": rawText.count,
+            "text_chars": outputText.count,
+            "duration": result["duration"] ?? NSNull(),
+            "timings": result["timings"] ?? [:],
+            "polish_mode": result["polish_mode"] ?? NSNull(),
+            "polish_guarded": result["polish_guarded"] ?? NSNull()
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys])
+        var indexLine = jsonData
+        indexLine.append(Data("\n".utf8))
+        if !manager.fileExists(atPath: indexURL.path) {
+            manager.createFile(atPath: indexURL.path, contents: nil, attributes: [.posixPermissions: 0o600])
+        }
+        let indexHandle = try FileHandle(forWritingTo: indexURL)
+        try indexHandle.seekToEnd()
+        try indexHandle.write(contentsOf: indexLine)
+        try indexHandle.close()
+        try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: indexURL.path)
+
+        let dailyURL = dailyDirectory.appendingPathComponent("\(Self.dayFormatter.string(from: now)).md")
+        var dailyText = "\n## \(Self.timeFormatter.string(from: now)) · \(outputText.count) 字\n\n\(outputText.trimmingCharacters(in: .whitespacesAndNewlines))\n"
+        if !rawText.isEmpty, rawText != outputText {
+            dailyText += "\n原始转写：\n\n\(rawText.trimmingCharacters(in: .whitespacesAndNewlines))\n"
+        }
+        let dailyData = Data(dailyText.utf8)
+        if !manager.fileExists(atPath: dailyURL.path) {
+            manager.createFile(atPath: dailyURL.path, contents: nil, attributes: [.posixPermissions: 0o600])
+        }
+        let dailyHandle = try FileHandle(forWritingTo: dailyURL)
+        try dailyHandle.seekToEnd()
+        try dailyHandle.write(contentsOf: dailyData)
+        try dailyHandle.close()
+        try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: dailyURL.path)
     }
 
     func loadEntries() -> [HistoryEntry] {
@@ -123,6 +178,26 @@ struct HistoryStore {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
+
+    private static let compactTimestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter
+    }()
+
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
         return formatter
     }()
 }

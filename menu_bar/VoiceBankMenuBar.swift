@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 import Foundation
+import SwiftUI
 
 final class DashboardWindowController: NSWindowController {
     let statusLabel = makeLabel(VoiceBankStatus.ready.text, size: 15, weight: .medium, color: mutedTextColor)
@@ -12,6 +13,7 @@ final class DashboardWindowController: NSWindowController {
     let sidebarHost = NSView()
     let contentHost = NSView()
     let historyStore = HistoryStore()
+    lazy var dashboardModel = DashboardViewModel(historyStore: historyStore)
     var selectedPage: DashboardPage = .home
     var historyFolderURL: URL {
         historyStore.historyFolderURL
@@ -27,8 +29,7 @@ final class DashboardWindowController: NSWindowController {
         window.title = "Voice Bank"
         window.minSize = NSSize(width: 880, height: 600)
         super.init(window: window)
-        window.contentView = buildRootView()
-        showPage(.home)
+        window.contentView = NSHostingView(rootView: VoiceBankDashboardView(model: dashboardModel))
         window.center()
     }
 
@@ -38,20 +39,19 @@ final class DashboardWindowController: NSWindowController {
 
     func show() {
         refreshStatsFromHistory()
-        if selectedPage == .history {
-            showPage(.history)
-        }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
     func updateStatus(_ status: VoiceBankStatus) {
+        dashboardModel.updateStatus(status)
         statusLabel.stringValue = status.text
         statusDot.fillColor = status.dotColor
         statusDot.needsLayout = true
     }
 
     func updateHotkeyStatus(_ status: String) {
+        dashboardModel.updateHotkeyStatus(status)
         hotkeyStatusLabel.stringValue = status
     }
 
@@ -63,11 +63,24 @@ final class DashboardWindowController: NSWindowController {
         let total = (Int(totalWordsLabel.stringValue) ?? 0) + count
         wordsTodayLabel.stringValue = "\(today)"
         totalWordsLabel.stringValue = "\(total)"
+        dashboardModel.refreshHistory()
+    }
+
+    func configureActions(
+        requestPermissions: @escaping () -> Void,
+        openPrivacySettings: @escaping () -> Void,
+        testMini: @escaping () -> Void,
+        configureServer: @escaping () -> Void
+    ) {
+        dashboardModel.requestPermissions = requestPermissions
+        dashboardModel.openPrivacySettings = openPrivacySettings
+        dashboardModel.testMini = testMini
+        dashboardModel.configureServer = configureServer
     }
 
 }
 
-private enum RecordingOverlayState {
+enum RecordingOverlayState {
     case recording
     case processing
     case done
@@ -92,6 +105,7 @@ private enum RecordingOverlayState {
 
 final class RecordingOverlayController {
     private let panel: NSPanel
+    private let overlayModel = RecordingOverlayModel()
     private let label = makeLabel(RecordingOverlayState.recording.labelText, size: 20, weight: .semibold, alignment: .center)
     private let icon = makeSymbol("mic.fill", pointSize: 24, color: accentColor)
     private let indicatorHost = NSView()
@@ -106,7 +120,7 @@ final class RecordingOverlayController {
 
     init() {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 430, height: 92),
+            contentRect: NSRect(x: 0, y: 0, width: 350, height: 76),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -117,36 +131,27 @@ final class RecordingOverlayController {
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.ignoresMouseEvents = true
-        panel.contentView = buildContent()
+        panel.contentView = NSHostingView(rootView: RecordingOverlayView(model: overlayModel))
     }
 
     func showRecording() {
         advanceOverlayGeneration()
         currentState = .recording
-        icon.contentTintColor = NSColor.systemRed
-        refreshLocalizedText()
-        label.textColor = textColor
-        showWave(color: NSColor.systemRed)
+        overlayModel.show(.recording)
         show()
     }
 
     func showProcessing() {
         advanceOverlayGeneration()
         currentState = .processing
-        icon.contentTintColor = accentColor
-        refreshLocalizedText()
-        label.textColor = textColor
-        showSpinner()
+        overlayModel.show(.processing)
         show()
     }
 
     func showDone() {
         advanceOverlayGeneration()
         currentState = .done
-        stopActivityIndicator()
-        icon.contentTintColor = NSColor.systemGreen
-        refreshLocalizedText()
-        label.textColor = textColor
+        overlayModel.show(.done)
         show()
         hideAfterDelay()
     }
@@ -154,10 +159,7 @@ final class RecordingOverlayController {
     func showCanceled() {
         advanceOverlayGeneration()
         currentState = .canceled
-        stopActivityIndicator()
-        icon.contentTintColor = NSColor.systemOrange
-        refreshLocalizedText()
-        label.textColor = textColor
+        overlayModel.show(.canceled)
         show()
         hideAfterDelay()
     }
@@ -165,16 +167,14 @@ final class RecordingOverlayController {
     func showFailed() {
         advanceOverlayGeneration()
         currentState = .failed
-        stopActivityIndicator()
-        icon.contentTintColor = NSColor.systemRed
-        refreshLocalizedText()
-        label.textColor = textColor
+        overlayModel.show(.failed)
         show()
         hideAfterDelay()
     }
 
     func refreshLocalizedText() {
         label.stringValue = currentState.labelText
+        overlayModel.refreshLocalizedText()
     }
 
     func updateAudioLevel(_ level: Double) {
@@ -182,12 +182,12 @@ final class RecordingOverlayController {
             return
         }
         let clampedLevel = min(max(CGFloat(level), 0), 1)
-        applyAudioLevel(clampedLevel)
+        overlayModel.updateAudioLevel(clampedLevel)
     }
 
     func hide() {
         advanceOverlayGeneration()
-        stopActivityIndicator()
+        overlayModel.updateAudioLevel(0)
         panel.orderOut(nil)
     }
 
@@ -358,10 +358,6 @@ final class RecordingOverlayController {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let projectDir = VoiceBankConfig.projectDirectory
-    private let endpoint = VoiceBankConfig.endpoint
-    private let healthURL = VoiceBankConfig.healthURL
-
     private var statusItem: NSStatusItem?
     private var voiceMenuItem: NSMenuItem?
     private var hotKeyMenuItem: NSMenuItem?
@@ -373,9 +369,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlayController = RecordingOverlayController()
     private let permissionsService = PermissionsService()
     private let audioLevelService = AudioLevelService()
+    private lazy var networkSession = VoiceBankConfig.makeURLSession(requestTimeout: 15, resourceTimeout: 20)
     private lazy var voiceInputClient = VoiceInputClient(
-        projectDir: projectDir,
-        endpoint: endpoint,
+        endpointProvider: { VoiceBankConfig.endpoint },
         audioLevelService: audioLevelService
     )
     private lazy var pasteService = PasteService(permissions: permissionsService) { _ in }
@@ -419,6 +415,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let dashboard = DashboardWindowController()
         dashboardController = dashboard
+        dashboard.configureActions(
+            requestPermissions: { [weak self] in self?.requestRequiredPermissions() },
+            openPrivacySettings: { [weak self] in self?.openPrivacySettings() },
+            testMini: { [weak self] in self?.testConnection() },
+            configureServer: { [weak self] in self?.configureServer() }
+        )
         audioLevelService.onLevel = { [weak self] level in
             self?.overlayController.updateAudioLevel(level)
         }
@@ -492,8 +494,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(accessibilityItem)
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: VoiceBankText.pick("Open README", "打开 README"), action: #selector(openReadme), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: VoiceBankText.pick("Open Project Folder", "打开项目文件夹"), action: #selector(openProjectFolder), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: VoiceBankText.pick("Open GitHub", "打开 GitHub"), action: #selector(openReadme), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: VoiceBankText.pick("Open History Folder", "打开历史文件夹"), action: #selector(openProjectFolder), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: VoiceBankText.pick("Quit Voice Bank", "退出 Voice Bank"), action: #selector(quit), keyEquivalent: "q"))
 
@@ -521,50 +523,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshLocalizedInterface()
     }
 
-    @objc func changeHistoryEnabled(_ sender: NSSwitch) {
-        VoiceBankPreferences.saveLocalHistory = sender.state == .on
-        if let dashboardController {
-            dashboardController.showPage(dashboardController.selectedPage)
-        }
-    }
-
-    @objc func changeHistoryRetention(_ sender: NSPopUpButton) {
-        guard let days = sender.selectedItem?.representedObject as? Int else {
-            return
-        }
-        VoiceBankPreferences.historyRetentionDays = days
-    }
-
-    @objc func clearLocalHistory() {
-        guard !voiceInputClient.isRunning else {
-            let alert = NSAlert()
-            alert.messageText = VoiceBankText.pick("Recording is active", "正在录音或识别")
-            alert.informativeText = VoiceBankText.pick("Finish or cancel the current recording before clearing history.", "请先结束或取消当前录音，再清空历史。")
-            alert.runModal()
-            return
-        }
-
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = VoiceBankText.pick("Delete all transcript history?", "删除全部转写历史？")
-        alert.informativeText = VoiceBankText.pick("This permanently removes locally stored raw and polished text. This action cannot be undone.", "这会永久删除本机保存的原始转写与整理文字，且无法撤销。")
-        alert.addButton(withTitle: VoiceBankText.pick("Delete All", "全部删除"))
-        alert.addButton(withTitle: VoiceBankText.pick("Cancel", "取消"))
-        guard alert.runModal() == .alertFirstButtonReturn else {
-            return
-        }
-
-        do {
-            try dashboardController?.historyStore.clearAll()
-            if let dashboardController {
-                dashboardController.showPage(.history)
-            }
-        } catch {
-            let errorAlert = NSAlert(error: error)
-            errorAlert.runModal()
-        }
-    }
-
     private func refreshLocalizedInterface() {
         statusItem?.menu = buildStatusMenu()
         recordingCoordinator.refreshLocalizedDisplay()
@@ -585,11 +543,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func testConnection() {
         setStatus(.testingMini)
-        var request = URLRequest(url: healthURL)
-        if let serverToken = VoiceBankConfig.serverToken {
-            request.setValue("Bearer \(serverToken)", forHTTPHeaderField: "Authorization")
+        var request = URLRequest(url: VoiceBankConfig.healthURL)
+        if let token = VoiceBankConfig.serverToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        networkSession.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 if let error {
                     self?.setStatus(.miniFailed(error.localizedDescription))
@@ -610,6 +568,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func requestRequiredPermissions() {
+        permissionsService.requestMicrophoneIfNeeded { [weak self] granted in
+            if !granted {
+                self?.setStatus(.launchFailed(VoiceBankText.pick("Microphone permission is required.", "需要授予麦克风权限。")))
+            }
+        }
+
         let accessibilityTrusted = permissionsService.requestAccessibilityIfNeeded()
         if !accessibilityTrusted {
             setStatus(.allowAccessibility)
@@ -630,12 +594,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         permissionsService.openInputMonitoringSettings()
     }
 
+    private func configureServer() {
+        guard !voiceInputClient.isRunning else {
+            setStatus(.stillProcessing)
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = VoiceBankText.pick("Voice Bank Server", "Voice Bank 服务端")
+        alert.informativeText = VoiceBankText.pick(
+            "Enter the transcription endpoint. Voice Bank adds /transcribe when only a host and port are provided.",
+            "请输入转写服务地址。如果只填写主机和端口，Voice Bank 会自动补上 /transcribe。"
+        )
+        alert.addButton(withTitle: VoiceBankText.pick("Save and Test", "保存并测试"))
+        alert.addButton(withTitle: VoiceBankText.pick("Cancel", "取消"))
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 420, height: 24))
+        field.stringValue = VoiceBankConfig.endpoint
+        field.placeholderString = "http://127.0.0.1:8767/transcribe"
+        alert.accessoryView = field
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+
+        do {
+            try VoiceBankConfig.saveEndpoint(field.stringValue)
+            dashboardController?.dashboardModel.refreshServerEndpoint()
+            statusItem?.menu = buildStatusMenu()
+            testConnection()
+        } catch {
+            NSAlert(error: error).runModal()
+        }
+    }
+
     @objc private func openReadme() {
-        NSWorkspace.shared.open(URL(fileURLWithPath: "\(projectDir)/README.md"))
+        NSWorkspace.shared.open(VoiceBankConfig.repositoryURL)
     }
 
     @objc private func openProjectFolder() {
-        NSWorkspace.shared.open(URL(fileURLWithPath: projectDir, isDirectory: true))
+        NSWorkspace.shared.open(VoiceBankConfig.historyDirectoryURL)
     }
 
     @objc private func quit() {
