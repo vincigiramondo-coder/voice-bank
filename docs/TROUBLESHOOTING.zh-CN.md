@@ -93,7 +93,7 @@ lsof -nP -iTCP:8767 -sTCP:LISTEN
 
 ## App 无法打开或提示无法验证开发者
 
-正式 Release 应经过 Developer ID 签名和 Apple 公证。如果你自行从源码构建了临时签名版本，确认源码可信后：
+当前没有正式签名的公开安装包。正式 Release 应经过 Developer ID 签名和 Apple 公证。如果你自行从可信源码构建了临时签名版本：
 
 1. 尝试打开一次 App。
 2. 前往 **系统设置 > 隐私与安全性**。

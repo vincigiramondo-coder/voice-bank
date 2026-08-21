@@ -34,12 +34,20 @@ Server:
 - Python 3.13, FFmpeg, and space for the models
 - 16GB RAM and at least 8GB of free disk space are recommended
 
-## Install the Client
+## Install the Client Today
 
-Official Releases provide two installation choices:
+The current GitHub version is source-build only. There is no Developer ID-signed and notarized public installer yet. The client itself is complete and self-contained, but installation requires one Terminal build:
 
-1. Double-click `Voice-Bank-<version>.pkg` and follow the macOS installer; or
-2. Open the DMG and drag `Voice Bank.app` into `Applications`.
+```bash
+git clone https://github.com/vincigiramondo-coder/voice-bank.git
+cd voice-bank
+VOICEBANK_CODESIGN_IDENTITY=- ./menu_bar/install_voicebank_app.sh
+open "/Applications/Voice Bank.app"
+```
+
+This requires Xcode Command Line Tools but not Python for the client. macOS may block the ad-hoc build on first launch. Follow [Troubleshooting](docs/TROUBLESHOOTING.en.md) only after confirming the source came from this project.
+
+The repository can generate PKG, DMG, and ZIP artifacts, but they are local test artifacts rather than official one-click releases until Developer ID signing and Apple notarization are available.
 
 After the first launch, click **Change** beside **Mini Server** and enter the service endpoint, for example:
 
@@ -115,13 +123,13 @@ VOICEBANK_CODESIGN_IDENTITY=- ./menu_bar/build_menu_bar_app.sh
 open "build/Voice Bank.app"
 ```
 
-Create DMG, PKG, and ZIP artifacts:
+Create local-test DMG, PKG, and ZIP artifacts:
 
 ```bash
 ./distribution/build_release.sh
 ```
 
-Public distribution requires Developer ID signing and Apple notarization. See [Productization](docs/PRODUCTIZATION.md).
+These artifacts do not automatically gain Apple trust. Public distribution requires Developer ID signing and Apple notarization. See [Productization](docs/PRODUCTIZATION.md).
 
 ## Uninstall
 

@@ -93,7 +93,7 @@ If it is an older Voice Bank process, run `./server/scripts/install_launchd.sh` 
 
 ## macOS Blocks the App or Cannot Verify the Developer
 
-Official Releases should be Developer ID signed and notarized. If you built an ad-hoc version from trusted source:
+There is currently no signed public installer. Official Releases should be Developer ID signed and notarized. If you built an ad-hoc version from trusted source:
 
 1. Attempt to open the app once.
 2. Open **System Settings > Privacy & Security**.

@@ -34,12 +34,20 @@ Voice Bank 是一套本地优先、可自托管的 macOS 语音输入工具。�
 - Python 3.13、FFmpeg 和足够的模型空间
 - 建议至少 16GB 内存、8GB 可用磁盘空间
 
-## 安装客户端
+## 当前如何安装客户端
 
-正式 Release 提供两种安装方式：
+当前 GitHub 版本仅提供源码构建，尚未发布 Developer ID 签名和 Apple 公证的正式安装包。客户端本身已经完整、自包含，但安装仍需要一次终端构建：
 
-1. 双击 `Voice-Bank-<版本>.pkg`，按照 macOS 安装向导完成安装；或
-2. 打开 DMG，把 `Voice Bank.app` 拖入 `Applications`。
+```bash
+git clone https://github.com/vincigiramondo-coder/voice-bank.git
+cd voice-bank
+VOICEBANK_CODESIGN_IDENTITY=- ./menu_bar/install_voicebank_app.sh
+open "/Applications/Voice Bank.app"
+```
+
+这一步需要 Xcode Command Line Tools，但客户端不需要 Python。临时签名版本首次打开时可能被 macOS 拦截，请只在确认源码来自本项目后，按照[故障排查](docs/TROUBLESHOOTING.zh-CN.md)处理。
+
+仓库虽然可以生成 PKG、DMG 和 ZIP，但在获得 Developer ID 并完成 Apple 公证前，它们只用于本机测试，不作为正式一键安装版发布。
 
 首次打开后，在首页的 **Mini 服务** 一行点击 **设置**，填写服务地址，例如：
 
@@ -115,13 +123,13 @@ VOICEBANK_CODESIGN_IDENTITY=- ./menu_bar/build_menu_bar_app.sh
 open "build/Voice Bank.app"
 ```
 
-生成 DMG、PKG 和 ZIP：
+生成仅供本机测试的 DMG、PKG 和 ZIP：
 
 ```bash
 ./distribution/build_release.sh
 ```
 
-公开发行前必须使用 Developer ID 对 App/PKG 签名并完成 Apple 公证，详见 [产品化说明](docs/PRODUCTIZATION.md)。
+这些文件不会自动获得 Apple 信任。公开发行前必须使用 Developer ID 对 App/PKG 签名并完成 Apple 公证，详见 [产品化说明](docs/PRODUCTIZATION.md)。
 
 ## 卸载
 

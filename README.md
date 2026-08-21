@@ -46,6 +46,8 @@ The macOS client is a self-contained native app. Releases can provide a PKG, DMG
 
 macOS 客户端已经是自包含的原生 App。Release 可以提供 PKG、DMG 和 ZIP；Python 只用于独立的自托管识别服务端。公开二进制在发布前必须完成 Developer ID 签名和 Apple 公证。完整说明见：
 
+> **Current distribution status / 当前发布状态:** Source build only. There is no Developer ID-signed or notarized public installer yet. The repository can generate local test PKG/DMG files, but they are not official one-click releases. / 当前仅提供源码构建，尚无 Developer ID 签名及 Apple 公证的公开安装包。仓库可以生成本机测试用 PKG/DMG，但它们不是正式的一键安装版。
+
 - [中文安装与使用教程](README.zh-CN.md)
 - [English installation and user guide](README.en.md)
 - [中文故障排查](docs/TROUBLESHOOTING.zh-CN.md)
