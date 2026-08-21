@@ -30,10 +30,24 @@ jobs:
 
       - name: Check shell scripts and launchd template
         run: |
-          bash -n menu_bar/build_menu_bar_app.sh menu_bar/install_voicebank_app.sh server/scripts/*.sh
+          bash -n menu_bar/build_menu_bar_app.sh menu_bar/install_voicebank_app.sh distribution/*.sh server/scripts/*.sh
+          plutil -lint distribution/VoiceBank.entitlements
           plutil -lint server/deploy/com.voicebank.voice-input.plist.template
+
+      - name: Verify native History compatibility
+        run: |
+          swiftc -parse-as-library \
+            menu_bar/VoiceBankText.swift \
+            menu_bar/VoiceBankConfig.swift \
+            menu_bar/HistoryStore.swift \
+            tests/NativeHistorySmoke.swift \
+            -o /tmp/voicebank-native-history-smoke
+          /tmp/voicebank-native-history-smoke
 
       - name: Build and verify the menu bar app
         run: |
           ./menu_bar/build_menu_bar_app.sh
-          codesign --verify --deep --strict build/VoiceBankMenuBar.app
+          codesign --verify --deep --strict "build/Voice Bank.app"
+          if strings "build/Voice Bank.app/Contents/MacOS/VoiceBankMenuBar" | grep -E '/Users/|Desktop/Codex|\.venv/bin/python|air_voice_client\.py'; then
+            exit 1
+          fi

@@ -63,7 +63,7 @@ tail -n 80 server/logs/launchd.out.log
 tail -n 80 server/logs/launchd.err.log
 ```
 
-如果日志显示找不到 Python 或项目文件，通常是源码目录被移动或删除了。回到新的项目目录，重新运行服务端安装和菜单栏 App 安装脚本。
+如果日志显示找不到 Python 或服务端项目文件，通常是服务端源码目录被移动或删除了。回到新的项目目录，重新运行服务端安装脚本。客户端 App 不依赖源码目录。
 
 ## 健康检查显示 `starting_or_unavailable`
 
@@ -93,7 +93,7 @@ lsof -nP -iTCP:8767 -sTCP:LISTEN
 
 ## App 无法打开或提示无法验证开发者
 
-当前源码版没有付费 Developer ID 公证。确认源码来自你信任的项目页面后：
+当前没有正式签名的公开安装包。正式 Release 应经过 Developer ID 签名和 Apple 公证。如果你自行从可信源码构建了临时签名版本：
 
 1. 尝试打开一次 App。
 2. 前往 **系统设置 > 隐私与安全性**。
@@ -103,7 +103,7 @@ lsof -nP -iTCP:8767 -sTCP:LISTEN
 
 ```bash
 ./menu_bar/install_voicebank_app.sh
-open "$HOME/Applications/Voice Bank.app"
+open "/Applications/Voice Bank.app"
 ```
 
 ## 右侧 `Option` 没反应
@@ -113,7 +113,7 @@ open "$HOME/Applications/Voice Bank.app"
 3. 同时检查 **辅助功能** 权限。
 4. 完全退出 Voice Bank 后重新打开。
 
-如果权限列表中出现多个 Voice Bank，删除旧条目，只保留当前 `~/Applications/Voice Bank.app`，再重新授权。
+如果权限列表中出现多个 Voice Bank，删除旧条目，只保留当前 `/Applications/Voice Bank.app`，再重新授权。
 
 ## 能录音，但没有识别结果
 
@@ -128,18 +128,16 @@ curl http://127.0.0.1:8767/healthz
 ## 有识别结果，但没有自动粘贴
 
 - 检查 **系统设置 > 隐私与安全性 > 辅助功能** 是否允许 Voice Bank。
-- 如果识别期间切换了应用，这是预期的隐私保护：结果只会进入剪贴板，请回到目标输入框按 `Command+V`。
+- Voice Bank 会向识别完成时的前台应用发送粘贴；如果处理中切换了应用，请检查当前光标位置。
 - 某些密码框、安全输入框或受管应用会拒绝模拟粘贴，此时也请手动粘贴。
 
-## App 提示找不到客户端或启动失败
+## App 显示服务连接失败
 
-菜单栏 App 在构建时记住源码绝对路径。如果你移动、重命名或删除了项目文件夹，请在新位置执行：
+客户端不依赖源码目录、Python 或虚拟环境。请在 Voice Bank 首页的 **Mini 服务** 一行点击 **设置**，确认 `/transcribe` 地址正确，再点击 **测试**。本机服务通常使用：
 
-```bash
-./menu_bar/install_voicebank_app.sh
+```text
+http://127.0.0.1:8767/transcribe
 ```
-
-同时确认项目根目录存在 `.venv/bin/python`。如果不存在，重新执行中文教程中的“安装菜单栏 App”步骤。
 
 ## 双机模式返回 `401 Unauthorized`
 
@@ -174,8 +172,8 @@ df -h "$HOME"
 
 1. 退出菜单栏 App。
 2. 执行 `./server/scripts/uninstall_launchd.sh`。
-3. 在 Finder 中删除 `~/Applications/Voice Bank.app`。
-4. 将项目中的 `.venv`、`server/.venv` 移到废纸篓。
+3. 在 Finder 中删除 `/Applications/Voice Bank.app`。
+4. 如需重装服务端，将项目中的 `server/.venv` 移到废纸篓。
 5. 按[中文安装教程](../README.zh-CN.md)重新安装。
 
-默认关闭历史，因此重装通常没有文字数据需要迁移。若曾开启历史，请先决定是否保留 `~/Documents/Voice Bank/History`。
+重装客户端不会自动删除文字 History。请先决定是否保留 `~/Documents/Voice Bank/History`。

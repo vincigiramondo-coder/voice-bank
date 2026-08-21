@@ -63,7 +63,7 @@ tail -n 80 server/logs/launchd.out.log
 tail -n 80 server/logs/launchd.err.log
 ```
 
-If the logs report a missing Python or project file, the source folder was probably moved or deleted. Enter its new location and reinstall both the server and menu bar app.
+If the logs report a missing Python or server project file, the server source folder was probably moved or deleted. Enter its new location and reinstall the server. The client app does not depend on the source folder.
 
 ## Health Reports `starting_or_unavailable`
 
@@ -93,7 +93,7 @@ If it is an older Voice Bank process, run `./server/scripts/install_launchd.sh` 
 
 ## macOS Blocks the App or Cannot Verify the Developer
 
-The source release is not notarized with a paid Developer ID. After confirming that the source came from a project page you trust:
+There is currently no signed public installer. Official Releases should be Developer ID signed and notarized. If you built an ad-hoc version from trusted source:
 
 1. Attempt to open the app once.
 2. Open **System Settings > Privacy & Security**.
@@ -103,7 +103,7 @@ If the app quits immediately, rebuild and reinstall from the project root:
 
 ```bash
 ./menu_bar/install_voicebank_app.sh
-open "$HOME/Applications/Voice Bank.app"
+open "/Applications/Voice Bank.app"
 ```
 
 ## The Right `Option` Key Does Nothing
@@ -113,7 +113,7 @@ open "$HOME/Applications/Voice Bank.app"
 3. Check **Accessibility** permission too.
 4. Quit Voice Bank completely and reopen it.
 
-If the permission list contains multiple Voice Bank entries, remove old entries, keep the current `~/Applications/Voice Bank.app`, and grant access again.
+If the permission list contains multiple Voice Bank entries, remove old entries, keep the current `/Applications/Voice Bank.app`, and grant access again.
 
 ## Recording Works but No Text Is Returned
 
@@ -128,18 +128,16 @@ Under **System Settings > Privacy & Security > Microphone**, confirm that Voice 
 ## Text Is Recognized but Not Pasted
 
 - Allow Voice Bank under **System Settings > Privacy & Security > Accessibility**.
-- If you switched applications during transcription, this is expected privacy protection. Return to the original field and press `Command+V`.
+- Voice Bank sends paste to the frontmost app when transcription finishes. If you switch apps during processing, verify the current cursor position.
 - Password fields, secure input controls, and some managed apps may reject simulated paste. Paste manually in those cases.
 
-## The App Cannot Find the Client or Reports Launch Failure
+## The App Reports a Server Connection Failure
 
-The menu bar app records the source folder's absolute path when built. If the folder was moved, renamed, or deleted, run from its new location:
+The client does not depend on the source directory, Python, or a virtual environment. Click **Change** beside **Mini Server**, verify the `/transcribe` endpoint, then click **Test**. A local server normally uses:
 
-```bash
-./menu_bar/install_voicebank_app.sh
+```text
+http://127.0.0.1:8767/transcribe
 ```
-
-Also confirm that `.venv/bin/python` exists in the project root. If it does not, repeat the client installation section of the English guide.
 
 ## Two-Mac Mode Returns `401 Unauthorized`
 
@@ -174,8 +172,8 @@ When Voice Bank is no longer needed, uninstall the service before deleting the s
 
 1. Quit the menu bar app.
 2. Run `./server/scripts/uninstall_launchd.sh`.
-3. Delete `~/Applications/Voice Bank.app` in Finder.
-4. Move `.venv` and `server/.venv` from the project to Trash.
+3. Delete `/Applications/Voice Bank.app` in Finder.
+4. To rebuild the server runtime, move `server/.venv` from the project to Trash.
 5. Repeat the [English installation guide](../README.en.md).
 
-History is disabled by default, so a reinstall normally has no transcript data to migrate. If history was enabled, decide whether to keep `~/Documents/Voice Bank/History` first.
+Reinstalling the client does not automatically remove text History. Decide whether to keep `~/Documents/Voice Bank/History` first.

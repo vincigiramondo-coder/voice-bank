@@ -2,212 +2,143 @@
 
 [中文](README.zh-CN.md) · [Home](README.md) · [Troubleshooting](docs/TROUBLESHOOTING.en.md)
 
-Voice Bank is a local-first, self-hosted Chinese voice input tool for macOS. Press the right `Option` key once to start recording and again to stop. Audio is transcribed on this Mac, or on another Mac you control, and the result is pasted back into the original input field.
+Voice Bank is a local-first, self-hosted voice input tool for macOS. Press the right `Option` key once to record and again to stop. The client sends audio to the Voice Bank server you configure, then copies and pastes the returned text at the current input position.
 
-> This is a source release, not an Apple-signed and notarized DMG. Installation uses Terminal; everyday use only requires the menu bar app and the right `Option` key.
+## Product Architecture
 
-## Why I Made It
-
-Voice Bank was built with help from Codex 5.5 and 5.6. I do not know how to code, and the built-in Mac dictation did not work well for me. I previously used a voice input app made by a talented independent developer and happily relied on it for a few weeks, only to see it disappear. So, guided by my memory of that experience, I asked Codex to make another one. If you are interested, give this repository to your own AI assistant and ask it to help install the project by following this guide.
-
-Speech recognition runs on a local FunASR model that is downloaded on first launch. Text polishing can optionally use another local model; I use a basic Gemma 4 setup. The goal is simple: it works.
+- **Voice Bank.app** is a native macOS client containing the dashboard, menu bar, recording HUD, hotkey, recorder, upload client, History, and paste behavior.
+- **Voice Bank Server** is a separate transcription service. It can run on the same Mac or another Mac reachable through your LAN or Tailscale.
+- The client does not depend on Python, a virtual environment, a source directory, or an external launch script. The downloaded installer can be removed after installation.
 
 ## Features
 
 - Global right `Option` recording hotkey; the left `Option` key is ignored.
-- Local Chinese transcription with FunASR and no cloud API key.
-- Conservative local punctuation and disfluency cleanup for short text.
-- Optional local Ollama polishing for longer, less structured dictation.
-- Automatic paste with focus protection. If you switch apps during transcription, the result is copied instead of pasted into the wrong window.
-- Transcript history is off by default. If enabled, retention choices are 7, 30, 90, or 365 days, with a clear-all action.
+- Native SwiftUI dashboard, recording HUD, and live audio level display.
+- FunASR transcription and conservative text cleanup through your self-hosted server.
+- Clipboard copy followed by `Command+V` paste.
+- Local text History under `~/Documents/Voice Bank/History`.
+- Private, randomly named temporary recording directories removed after processing.
+- Editable and testable server endpoint in the Voice Bank dashboard.
 
 ## Requirements
 
-- Apple Silicon Mac (the currently tested platform; Intel is untested)
+Client:
+
+- Apple Silicon Mac (currently tested; Intel is untested)
 - macOS 14 or later
-- Python 3.13 (tested with 3.13.13)
-- Xcode Command Line Tools
-- Homebrew and FFmpeg
+- A reachable Voice Bank `/transcribe` service
+
+Server:
+
+- Apple Silicon Mac
+- Python 3.13, FFmpeg, and space for the models
 - 16GB RAM and at least 8GB of free disk space are recommended
 
-The menu bar client is small. Most disk usage comes from the Python environments, PyTorch, and FunASR models downloaded on first launch.
+## Install the Client Today
 
-## 1. Install System Tools
-
-Open Terminal and install Apple's command line developer tools:
+The current GitHub version is source-build only. There is no Developer ID-signed and notarized public installer yet. The client itself is complete and self-contained, but installation requires one Terminal build:
 
 ```bash
-xcode-select --install
+git clone https://github.com/vincigiramondo-coder/voice-bank.git
+cd voice-bank
+VOICEBANK_CODESIGN_IDENTITY=- ./menu_bar/install_voicebank_app.sh
+open "/Applications/Voice Bank.app"
 ```
 
-If Homebrew is not installed, follow the instructions on the [official Homebrew website](https://brew.sh/). Then run:
+This requires Xcode Command Line Tools but not Python for the client. macOS may block the ad-hoc build on first launch. Follow [Troubleshooting](docs/TROUBLESHOOTING.en.md) only after confirming the source came from this project.
 
-```bash
-brew install python@3.13 ffmpeg
+The repository can generate PKG, DMG, and ZIP artifacts, but they are local test artifacts rather than official one-click releases until Developer ID signing and Apple notarization are available.
+
+After the first launch, click **Change** beside **Mini Server** and enter the service endpoint, for example:
+
+```text
+http://127.0.0.1:8767/transcribe
 ```
 
-Verify the tools:
+For a server on another Mac, use its LAN- or Tailscale-reachable address. Never expose port `8767` directly to the internet.
 
-```bash
-"$(brew --prefix python@3.13)/bin/python3.13" --version
-ffprobe -version
-```
+## Grant Permissions
 
-## 2. Download the Source
+Voice Bank needs:
 
-On the GitHub project page, choose **Code > Download ZIP**, extract it, and move the folder to a location you intend to keep, such as `~/VoiceBank`. You can also clone it with Git.
+1. **Microphone** to record audio.
+2. **Input Monitoring** to listen for the right `Option` key.
+3. **Accessibility** to send `Command+V` for automatic paste.
 
-In Terminal, enter the project root. Replace this example with your actual location:
+These controls are normally under **System Settings > Privacy & Security**. Quit and reopen Voice Bank after changing a permission.
 
-```bash
-cd ~/VoiceBank
-```
+## Use Voice Bank
 
-The installed app remembers this source directory. Do not move or delete it after installation. If you move it, run the client installer again.
+1. Place the cursor in a text field.
+2. Press the right `Option` key once and wait for the recording HUD.
+3. Speak.
+4. Press the right `Option` key again, then wait for transcription and paste.
+5. Press `Escape` during recording or processing to cancel.
 
-## 3. Install and Start the Local Voice Server
+When transcription finishes, Voice Bank pastes into the app that is currently in front. If you switch apps while it is processing, verify the current cursor position to avoid pasting into the wrong window.
 
-Create the server environment. The first install downloads a substantial set of Python packages:
+## Install the Local Server
+
+To install the server from source, prepare Python 3.13 and FFmpeg, then run from the repository root:
 
 ```bash
 VOICE_BANK_VOICE_INPUT_PYTHON="$(brew --prefix python@3.13)/bin/python3.13" \
   ./server/scripts/setup_runtime.sh
-```
-
-Install the server as a background service for the current user:
-
-```bash
 ./server/scripts/install_launchd.sh
 ```
 
-The first launch also downloads the FunASR models. Check readiness with:
+Check readiness:
 
 ```bash
 curl http://127.0.0.1:8767/healthz
 ```
 
-The server is ready when the response includes `"ok":true` and `"status":"ready"`. See [Troubleshooting](docs/TROUBLESHOOTING.en.md) if it does not become ready.
+The service is ready when the response contains `"ok":true` and `"status":"ready"`. The first launch may need to download the FunASR model.
 
-## 4. Install the Menu Bar App
+## Two-Mac Mode and Tokens
 
-From the project root, create the client environment and install the hash-locked dependencies:
+When the server listens beyond loopback, it requires a bearer token. The client reads the same token from this owner-only file:
 
-```bash
-"$(brew --prefix python@3.13)/bin/python3.13" -m venv .venv
-./.venv/bin/python -m pip install --require-hashes -r requirements-client.txt
-./menu_bar/install_voicebank_app.sh
+```text
+~/Library/Application Support/Voice Bank/server-token
 ```
 
-The app is installed to `~/Applications/Voice Bank.app` by default, so no administrator password is required. Open it with:
+Set its permissions to `600`. Plain HTTP does not encrypt content, so use Tailscale/VPN or TLS for two-Mac mode.
+
+## Privacy
+
+- Temporary recordings are deleted after processing and are never included in the repository or installer.
+- History, tokens, and local settings stay under the user's account.
+- Public source and Releases must not include private addresses, personal paths, recordings, transcripts, logs, or credentials.
+- When a remote server is configured, audio is sent to that server.
+
+See [SECURITY.md](SECURITY.md) for the complete boundary.
+
+## Build the Client from Source
+
+The client build does not require Python:
 
 ```bash
-open "$HOME/Applications/Voice Bank.app"
+VOICEBANK_CODESIGN_IDENTITY=- ./menu_bar/build_menu_bar_app.sh
+open "build/Voice Bank.app"
 ```
 
-If macOS blocks the first launch, open **System Settings > Privacy & Security**, confirm that this is the app you built from source, and choose **Open Anyway**. Do not install prebuilt copies from sources you do not trust.
-
-## 5. Grant Permissions
-
-Voice Bank needs:
-
-1. **Microphone** to record audio.
-2. **Input Monitoring** to listen for the right `Option` hotkey.
-3. **Accessibility** to send `Command+V` to the active app.
-
-These controls are normally under **System Settings > Privacy & Security**. Quit and reopen Voice Bank after changing a permission.
-
-## 6. Use Voice Bank
-
-1. Place the cursor in a text field.
-2. Press the right `Option` key once and wait for the recording indicator.
-3. Speak.
-4. Press the right `Option` key again, then wait for transcription and paste.
-
-If you change apps while transcription is running, Voice Bank only copies the result. Return to the target field and press `Command+V`.
-
-## History and Privacy
-
-- Client and server transcript history are both disabled by default.
-- Enable local history, choose retention, or clear all entries from Options on the Voice Bank home page.
-- When enabled, client history defaults to `~/Documents/Voice Bank/History`.
-- Temporary recordings are deleted after processing. A later launch also removes stale private recording directories left by a hard crash.
-- In single-Mac mode, audio is not sent to the internet.
-- Ollama is optional and local. If unavailable, Voice Bank falls back to conservative local cleanup.
-
-See [SECURITY.md](SECURITY.md) for the complete security boundary.
-
-## Optional: Command-Line Use
-
-Interactive recording:
+Create local-test DMG, PKG, and ZIP artifacts:
 
 ```bash
-./.venv/bin/python air_voice_client.py
+./distribution/build_release.sh
 ```
 
-Upload an existing audio file without automatic paste:
-
-```bash
-./.venv/bin/python air_voice_client.py --file /path/to/sample.wav --no-paste
-```
-
-CLI history is also off by default. Use `--save-history` to enable it, `--history-retention-days 30` to set retention, and `--clear-history` to delete it.
-
-## Optional: Two-Mac Setup
-
-One Mac can run the models while another records audio. This mode requires a shared bearer token and should operate only through Tailscale/VPN or TLS.
-
-Create the same owner-only token file on both Macs:
-
-```bash
-mkdir -p "$HOME/Library/Application Support/Voice Bank"
-printf '%s\n' 'PASTE_THE_SAME_STRONG_RANDOM_TOKEN_HERE' > "$HOME/Library/Application Support/Voice Bank/server-token"
-chmod 600 "$HOME/Library/Application Support/Voice Bank/server-token"
-```
-
-Generate the token on the server Mac with `openssl rand -hex 32`. Reinstall the background service on that Mac with LAN listening enabled:
-
-```bash
-VOICE_BANK_VOICE_INPUT_HOST=0.0.0.0 ./server/scripts/install_launchd.sh
-```
-
-Install the menu bar app on the client Mac with the server's VPN-reachable address:
-
-```bash
-VOICEBANK_SERVER_URL=http://YOUR_SERVER:8767/transcribe \
-VOICEBANK_HEALTH_URL=http://YOUR_SERVER:8767/healthz \
-./menu_bar/install_voicebank_app.sh
-```
-
-The token authenticates requests but plain HTTP does not encrypt them. Never expose port `8767` directly to the internet.
-
-## Update
-
-After updating the source, run from the project root:
-
-```bash
-./.venv/bin/python -m pip install --require-hashes -r requirements-client.txt
-VOICE_BANK_VOICE_INPUT_PYTHON="$(brew --prefix python@3.13)/bin/python3.13" \
-  ./server/scripts/setup_runtime.sh
-./server/scripts/install_launchd.sh
-./menu_bar/install_voicebank_app.sh
-```
+These artifacts do not automatically gain Apple trust. Public distribution requires Developer ID signing and Apple notarization. See [Productization](docs/PRODUCTIZATION.md).
 
 ## Uninstall
 
 1. Quit Voice Bank from its menu bar menu.
-2. Run `./server/scripts/uninstall_launchd.sh` to stop and remove the background service.
-3. Delete `~/Applications/Voice Bank.app` in Finder.
-4. Delete the source folder if you also want to remove the models and Python environments.
-5. If history was enabled, clear it in the app first or delete `~/Documents/Voice Bank/History` yourself.
-6. If two-Mac mode was configured, delete `~/Library/Application Support/Voice Bank/server-token`.
+2. Delete `/Applications/Voice Bank.app`.
+3. If the server is no longer needed, run `./server/scripts/uninstall_launchd.sh`.
+4. Delete `~/Documents/Voice Bank/History` to remove local text History.
+5. Delete `~/Library/Application Support/Voice Bank/server-token` if a token was configured.
 
-## Development and Licenses
+## License
 
-Development build:
-
-```bash
-./menu_bar/build_menu_bar_app.sh
-open build/VoiceBankMenuBar.app
-```
-
-Voice Bank source is licensed under the [MIT License](LICENSE). Models and dependencies retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). See [ASSETS.md](ASSETS.md) for the app icon declaration.
+Voice Bank is released under the [MIT License](LICENSE). Models and dependencies keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). See [ASSETS.md](ASSETS.md) for the icon declaration.

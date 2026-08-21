@@ -1,8 +1,26 @@
 import AppKit
 
-enum DashboardPage {
+enum DashboardPage: String, CaseIterable, Hashable {
     case home
     case history
+
+    var title: String {
+        switch self {
+        case .home:
+            return VoiceBankText.pick("Home", "首页")
+        case .history:
+            return VoiceBankText.pick("History", "历史")
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .home:
+            return "house"
+        case .history:
+            return "clock.arrow.circlepath"
+        }
+    }
 }
 
 class RoundedView: NSView {

@@ -15,10 +15,11 @@ Run the lightweight checks below from the repository root:
 ```bash
 python3 -m unittest discover -s tests -v
 python3 -m py_compile air_voice_client.py server/voice_input_server.py
-bash -n menu_bar/build_menu_bar_app.sh menu_bar/install_voicebank_app.sh server/scripts/*.sh
+bash -n menu_bar/build_menu_bar_app.sh menu_bar/install_voicebank_app.sh distribution/*.sh server/scripts/*.sh
+plutil -lint distribution/VoiceBank.entitlements
 plutil -lint server/deploy/com.voicebank.voice-input.plist.template
 ./menu_bar/build_menu_bar_app.sh
-codesign --verify --deep --strict build/VoiceBankMenuBar.app
+codesign --verify --deep --strict "build/Voice Bank.app"
 ```
 
 Do not commit generated apps, model files, recordings, transcripts, `.env` files, logs, or local runtime data.

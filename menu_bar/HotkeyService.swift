@@ -21,7 +21,10 @@ final class HotkeyService {
     private var localFlagsMonitor: Any?
     private var localKeyMonitor: Any?
     private var rightOptionDown = false
+    private var rightOptionDownAt = Date.distantPast
+    private var rightOptionUsedWithOtherKey = false
     private var lastRightOptionToggle = Date.distantPast
+    private let minimumRightOptionPressDuration: TimeInterval = 0.0
 
     init(permissions: PermissionsService, callbacks: HotkeyServiceCallbacks) {
         self.permissions = permissions
@@ -120,9 +123,16 @@ final class HotkeyService {
                     self?.handleRightOption(isDown: isDown)
                 }
             }
-        } else if type == .keyDown, keyCode == 53 {
+        } else if type == .keyDown {
             DispatchQueue.main.async { [weak self] in
-                self?.callbacks.cancelRecording()
+                guard let self else {
+                    return
+                }
+                if keyCode == 53 {
+                    self.callbacks.cancelRecording()
+                } else if self.rightOptionDown {
+                    self.rightOptionUsedWithOtherKey = true
+                }
             }
         }
     }
@@ -136,9 +146,14 @@ final class HotkeyService {
             self?.handleOptionEvent(event)
         }
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 {
-                DispatchQueue.main.async {
-                    self?.callbacks.cancelRecording()
+            DispatchQueue.main.async {
+                guard let self else {
+                    return
+                }
+                if event.keyCode == 53 {
+                    self.callbacks.cancelRecording()
+                } else if self.rightOptionDown {
+                    self.rightOptionUsedWithOtherKey = true
                 }
             }
         }
@@ -149,6 +164,8 @@ final class HotkeyService {
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 {
                 self?.callbacks.cancelRecording()
+            } else if self?.rightOptionDown == true {
+                self?.rightOptionUsedWithOtherKey = true
             }
             return event
         }
@@ -164,13 +181,21 @@ final class HotkeyService {
     private func handleRightOption(isDown: Bool) {
         if isDown, !rightOptionDown {
             rightOptionDown = true
+            rightOptionDownAt = Date()
+            rightOptionUsedWithOtherKey = false
         } else if !isDown, rightOptionDown {
             rightOptionDown = false
             let now = Date()
+            let pressDuration = now.timeIntervalSince(rightOptionDownAt)
+            guard pressDuration >= minimumRightOptionPressDuration, !rightOptionUsedWithOtherKey else {
+                rightOptionUsedWithOtherKey = false
+                return
+            }
             guard now.timeIntervalSince(lastRightOptionToggle) > 0.35 else {
                 return
             }
             lastRightOptionToggle = now
+            rightOptionUsedWithOtherKey = false
             callbacks.toggleRecording()
         }
     }
